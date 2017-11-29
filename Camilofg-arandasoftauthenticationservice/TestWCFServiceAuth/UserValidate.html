@@ -1,0 +1,84 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <script src="Scripts/jquery-1.10.2.min.js"></script>
+    <script src="Scripts/bootstrap.min.js"></script>
+    <link href="Scripts/bootstrap.min.css" rel="stylesheet" />
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $("#BtnLogin").click(function () {
+                var msg = {
+                    "Name": $("#name").val(),
+                    "PasswordHash": $("#password").val()
+                };
+                var data = JSON.stringify(msg);
+                PostMethod(data, "PostValidateUser");
+            });
+
+            function PostMethod(data, method) {
+                Type = "POST";
+                Url = "http://localhost:55982/UserService.svc/" + method;
+                ContentType = "application/json; charset=utf-8";
+                Data = data;
+                DataType = "json";
+                ProcessData = false;
+                CallServicePost();
+            }
+
+            function CallServicePost() {
+                $.ajax({
+                    type: Type,
+                    url: Url,
+                    data: Data,
+                    contentType: ContentType,
+                    dataType: DataType,
+                    processdata: ProcessData,
+                    success: function (msg) {
+                        alert(msg.Message);
+                        window.location.href("index.html");
+                    },
+                    error: function (result) {
+                        ServiceFailed(result);
+                    }
+                });
+            }
+        });
+    </script>
+
+    <style type="text/css">
+        fieldset {
+            padding-top: 15px;
+            padding-right: 30px;
+            padding-bottom: 30px;
+            padding-left: 30px;
+        }
+    </style>
+	<meta charset="utf-8" />
+</head>
+<body>
+    <div class="panel panel-default" id="PnlCreateAccess" style="display:block">
+        <fieldset>
+            <legend>Validate User</legend>
+            <div class='row'>
+                <div class='col-sm-4'>
+                    <div class='form-group'>
+                        <input placeholder="User Name" class="form-control" id="name" size="30" type="text" />
+                    </div>
+                </div>
+                <div class='col-sm-4'>
+                    <div class='form-group'>
+                        <input placeholder="Password" class="form-control" id="password" size="30" type="password" />
+                    </div>
+                </div>
+                <div class='col-sm-4'>
+                    <div class='form-group'>
+                        <input type="button" value="Login" id="BtnLogin" />
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+
+</body>
+</html>

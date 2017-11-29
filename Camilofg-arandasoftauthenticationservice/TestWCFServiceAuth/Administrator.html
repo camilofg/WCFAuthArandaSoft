@@ -1,0 +1,377 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <script src="Scripts/jquery-1.10.2.min.js"></script>
+    <script src="Scripts/bootstrap.min.js"></script>
+    <link href="Scripts/bootstrap.min.css" rel="stylesheet" />
+    <script type="text/javascript">
+        $(document).ready(function () {
+
+            LoadRoleSelect();
+
+            $("#BtnFilter").click(function () {
+                var access = $("#filter_access").val() == "" ? "null" : $("#filter_access").val();
+                var role = $("#filter_role").val() == "" ? "null" : $("#filter_role").val();
+                var url = "http://localhost:55982/UserService.svc/GetUsers/" + access + "/" + role;
+                GetMethod(url);
+            });
+
+            $("#BtnSaveAccess").click(function () {
+                var access = $("#create_access").val() == "" ? "null" : $("#create_access").val();
+                var msg = { "Description": access };
+                var Data = JSON.stringify(msg);
+                PostMethod(Data, "PostAccess");
+            });
+
+            $("#BtnSaveRole").click(function () {
+                var access = $("#create_role").val() == "" ? "null" : $("#create_role").val();
+                var msg = { "Description": access };
+                var data = JSON.stringify(msg);
+                PostMethod(data, "PostRole");
+            });
+
+            $("span").click(function () {
+                var pnl = "Pnl" + this.id;
+                $(".panel").css("display", "none");
+                $("#" + pnl).css("display", "block");
+            });
+
+            $("#BtnCreateUser").click(function () {
+                if ($("form")[0].checkValidity() && $("#select_create_role").val() != -1) {
+                    var access = $("#create_role").val() == "" ? "null" : $("#create_role").val();
+
+                    var msg = {
+                        "Name": $("#create_name").val(),
+                        "Email": $("#create_email").val(),
+                        "PasswordHash": $("#create_password").val(),
+                        "Address": $("#create_address").val(),
+                        "Telephone": $("#create_telephone").val(),
+                        "TypeRoleID": $("#select_create_role").val()
+                    };
+                    var data = JSON.stringify(msg);
+                    PostMethod(data, "PostUser");
+                }
+                else {
+                    alert("All the fields are required");
+                }
+            });
+
+            $("#select_create_role2").change(function () {
+                LoadAccessSelect($(this).val());
+            });
+
+            function LoadRoleSelect() {
+                var url = "http://localhost:55982/UserService.svc/GetRoles";
+                GetMethod(url);
+            }
+
+            function LoadAccessSelect(filter) {
+                var url = "http://localhost:55982/UserService.svc/GetAccess/" + filter;
+                GetMethod(url);
+            }
+
+            function PostMethod(data, method) {
+                Type = "POST";
+                Url = "http://localhost:55982/UserService.svc/" + method;
+                ContentType = "application/json; charset=utf-8";
+                Data = data;
+                DataType = "json";
+                ProcessData = false;
+                CallServicePost();
+            }
+
+            function GetMethod(url) {
+                Type = "GET";
+                Url = url;
+                ContentType = "application/json; charset=utf-8";
+                DataType = "json";
+                ProcessData = false;
+                CallServiceGet();
+            }
+
+            function CallServiceGet() {
+                $.ajax({
+                    type: Type,
+                    url: Url,
+                    contentType: ContentType,
+                    dataType: DataType,
+                    processdata: ProcessData,
+                    success: function (msg) {
+                        if (Url.indexOf("GetUsers") != -1) {
+                            $("#service_response").val(JSON.stringify(msg.GetUsersResult));
+                            var TabUsers = '<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Telephone</th><th>Address</th><th>Role</th><th>Delete</th></tr></thead><tbody>';
+
+                            $(msg.GetUsersResult).map(function (index, obj) {
+                                TabUsers += '<tr><td>' + obj.Name + '</td><td>' + obj.Email + '</td><td>' + obj.Telephone + '</td><td>' + obj.Address + '</td><td>' + obj.Description + '</td><td><input type="checkbox" id="ChkUser_' + obj.UserID + '"</td></tr>';
+                            });
+
+                            TabUsers += '</tbody></table>';
+                            $("#TabContainer").html(TabUsers);
+                        }
+                        if (Url.indexOf("GetRoles") != -1) {
+                            var strOptions = '<option value="-1" label="--Select--"></option>';
+                            $(msg.GetRolesResult).map(function (index, obj) {
+                                strOptions += '<option value="' + obj.RoleID + '" label="' + obj.Description + '"></option>';
+                            });
+                            $('#select_create_role').html(strOptions);
+                            $('#select_create_role2').html(strOptions);
+                            LoadAccessSelect(-1);
+                        }
+                        else {
+                            if (Url.indexOf("-1") != -1) {
+                                var strChkAccess = "";
+                                $(msg.GetAccessResult).map(function (index, obj) {
+                                    strChkAccess += '<input type="checkbox" value="' + obj.AccessID + '" id="chk_' + obj.AccessID + '" s/> ' + obj.Description + '<br />';
+                                });
+                                $('#AccessContainer').html(strChkAccess);
+                            }
+                            else {
+                                var chks = $(":checkbox");
+                                $(chks).map(function (index, obj) {
+                                    obj.checked = false;
+                                    $(msg.GetAccessResult).map(function (index2, obj2) {
+                                        if (obj.value == obj2.AccessID)
+                                            obj.checked = true;
+                                    });
+                                });
+                            }
+                        }
+                    },
+                    error: function (result) {
+                        ServiceFailed(result);
+                    }
+                });
+            }
+
+            $('#AccessContainer').on('click', ':checkbox', function () {
+                if ($("#select_create_role2").val() != -1) {
+                    var roleID = $("#select_create_role2").val();
+                    var accessID = $(this)[0].id.split("_")[1];
+                    var msg = {
+                        "Access": accessID,
+                        "Rol": roleID
+                    }
+                    var Data = JSON.stringify(msg);
+                    PostMethod(Data, "PostAccessXRole");
+                }
+            });
+
+            $("#TabContainer").on('click', ':checkbox', function () {
+                var row = $("#" + $(this)[0].id).closest("tr");
+                var UserID = $(this)[0].id.split("_")[1];
+                var Url = "http://localhost:55982/UserService.svc/DeleteUser/" + UserID;
+                CallServiceDelete(row, Url, "DELETE");
+            });
+
+            function CallServiceDelete(row, Url, Type) {
+                $.ajax({
+                    type: Type,
+                    url: Url,
+                    contentType: ContentType,
+                    processdata: false,
+                    success: function (msg) {
+                        row.remove();
+                    },
+                    error: function (result) {
+                        ServiceFailed(result);
+                    }
+                });
+            }
+
+            function CallServicePost() {
+                $.ajax({
+                    type: Type,
+                    url: Url,
+                    data: Data,
+                    contentType: ContentType,
+                    dataType: DataType,
+                    processdata: ProcessData,
+                    success: function (msg) {
+                        if (Url.indexOf("PostUser") != -1) {
+                            alert(msg.Message);
+                            $("#PnlCreateUser").find($("input[id*='create']").val(""));
+                        }
+                    },
+                    error: function (result) {
+                        ServiceFailed(result);
+                    }
+                });
+            }
+
+
+            function ServiceFailed(result) {
+                alert('Service call failed: ' + result.status + '' + result.statusText);
+            }
+
+        });
+    </script>
+    <style type="text/css">
+        fieldset {
+            padding-top: 15px;
+            padding-right: 30px;
+            padding-bottom: 30px;
+            padding-left: 30px;
+        }
+    </style>
+    <meta charset="utf-8" />
+</head>
+
+<body>
+    <form id="form1">
+        <div class="container">
+            <h3>Options Admin</h3>
+            <ul class="list-inline" style="cursor:pointer; color:blue">
+                <li><span id="GetUser">Get Users</span></li>
+                <li><span id="CreateUser">Create User</span></li>
+                <li><span id="CreateAccess">Create Access</span></li>
+                <li><span id="CreateRole">Create Role</span></li>
+                <li><span id="AccessXRole">Access X Role</span></li>
+            </ul>
+        </div>
+        <div class="panel panel-default" id="PnlGetUser">
+            <fieldset>
+                <legend>Get User</legend>
+                <div class='row'>
+                    <div class='col-sm-6'>
+                        <div class='form-group'>
+                            <label for="filter_access">Access</label>
+                            <input class="form-control" id="filter_access" size="30" type="text" />
+                        </div>
+                    </div>
+                    <div class='col-sm-6'>
+                        <div class='form-group'>
+                            <label for="filter_role">Role</label>
+                            <input class="form-control" id="filter_role" size="30" type="text" />
+                        </div>
+                    </div>
+                </div>
+                <div class='row'>
+                    <div class='col-sm-6'>
+                        <div class='form-group'>
+                            <input type="button" value="Filter" id="BtnFilter" />
+                        </div>
+                    </div>
+                    <div class='col-sm-6' style="padding-left:30px; padding-right:30px">
+                        <div class='form-group'>
+                            <div class="row">
+                                <label for="service_response">Service Response</label>
+                            </div>
+                            <div class="row">
+                                <textarea rows="8" id="service_response" style="width:100%"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <br />
+                <div id="TabContainer" class='row'>
+
+                </div>
+            </fieldset>
+        </div>
+
+        <div class="panel panel-default" id="PnlCreateUser" style="display:none">
+            <fieldset>
+                <legend>Create User</legend>
+                <div class='row'>
+                    <div class='col-sm-4'>
+                        <div class='form-group'>
+                            <input class="form-control" required placeholder="Name" id="create_name" size="30" type="text" />
+                        </div>
+                    </div>
+                    <div class='col-sm-4'>
+                        <div class='form-group'>
+                            <input class="form-control" required placeholder="Email" id="create_email" size="30" type="text" inputmode="email" />
+                        </div>
+                    </div>
+                    <div class='col-sm-4'>
+                        <div class='form-group'>
+                            <input class="form-control" required placeholder="Password" id="create_password" size="30" type="password" />
+                        </div>
+                    </div>
+                </div>
+                <div class='row'>
+                    <div class='col-sm-4'>
+                        <div class='form-group'>
+                            <input class="form-control" required placeholder="Address" id="create_address" size="30" type="text" />
+                        </div>
+                    </div>
+                    <div class='col-sm-4'>
+                        <div class='form-group'>
+                            <input class="form-control" required placeholder="Telephone" id="create_telephone" size="30" type="text" />
+                        </div>
+                    </div>
+                    <div class='col-sm-4'>
+                        <div class='form-group'>
+                            Role <select id="select_create_role"></select>
+                        </div>
+                    </div>
+                </div>
+                <div class='row'>
+                    <div class='col-sm-12'>
+                        <div class='form-group'>
+                            <input type="button" value="Create" id="BtnCreateUser" />
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <div class="panel panel-default" id="PnlCreateAccess" style="display:none">
+            <fieldset>
+                <legend>Create Access</legend>
+                <div class='row'>
+                    <div class='col-sm-6'>
+                        <div class='form-group'>
+                            <input placeholder="New Access" class="form-control" id="create_access" size="30" type="text" />
+                        </div>
+                    </div>
+                    <div class='col-sm-6'>
+                        <div class='form-group'>
+                            <input type="button" value="Save" id="BtnSaveAccess" />
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <div class="panel panel-default" id="PnlCreateRole" style="display:none">
+            <fieldset>
+                <legend>Create Role</legend>
+                <div class='row'>
+                    <div class='col-sm-6'>
+                        <div class='form-group'>
+                            <input placeholder="New Role" class="form-control" id="create_role" size="30" type="text" />
+                        </div>
+                    </div>
+                    <div class='col-sm-6'>
+                        <div class='form-group'>
+                            <input type="button" value="Save" id="BtnSaveRole" />
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <div class="panel panel-default" id="PnlAccessXRole" style="display:none">
+            <fieldset>
+                <legend>Access X Role</legend>
+                <div class='row'>
+                    <div class='col-sm-2'>
+                        <div class='form-group'>
+                            <label for="filter_role">Role</label>
+                            <select id="select_create_role2"></select>
+                        </div>
+                    </div>
+                    <div class='col-sm-2'>
+                        <div class='form-group'>
+                            <label for="filter_access">Access</label>
+                            <div class="container" id="AccessContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+    </form>
+</body>
+</html>
